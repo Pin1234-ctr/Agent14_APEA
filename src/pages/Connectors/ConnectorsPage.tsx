@@ -9,7 +9,6 @@ import {
   UploadCloud, Play, Power, Check, X, File, AlertCircle, Info, Settings2
 } from "lucide-react";
 import { cn } from "@/utils/cn";
-import { Pagination } from "@/components/shared/Pagination";
 
 // ── Sync countdown ────────────────────────────────────────────────────────────
 function SyncBar({ enabled, onSync, lastSync, rows }: {
@@ -107,10 +106,6 @@ export function ConnectorsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedRow, setExpandedRow] = useState<"csv" | "ftp" | null>(null);
   const [toast, setToast] = useState("");
-
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
 
   const notify = (m: string) => { 
     setToast(m); 
@@ -396,9 +391,6 @@ export function ConnectorsPage() {
     row.details.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalPages = Math.ceil(filteredRows.length / pageSize);
-  const paginatedRows = filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
   return (
     <div className="p-6 max-w-5xl mx-auto">
       {/* Toast Alert */}
@@ -428,10 +420,7 @@ export function ConnectorsPage() {
               type="text"
               placeholder="Search name or type"
               value={searchQuery}
-              onChange={e => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={e => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-1.5 rounded-lg border border-border bg-bg text-sm text-text placeholder-subtext focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
             />
           </div>
@@ -476,7 +465,7 @@ export function ConnectorsPage() {
                   </td>
                 </tr>
               ) : (
-                paginatedRows.map(row => {
+                filteredRows.map(row => {
                   const isExpanded = expandedRow === row.id;
                   return (
                     <>
@@ -627,11 +616,6 @@ export function ConnectorsPage() {
             </tbody>
           </table>
         </div>
-        <Pagination 
-          currentPage={currentPage} 
-          totalPages={totalPages} 
-          onPageChange={setCurrentPage} 
-        />
       </div>
 
       {/* Modern Add / Edit Connector Modal */}
@@ -778,6 +762,78 @@ export function ConnectorsPage() {
                         </button>
                       </div>
                     )}
+                  </div>
+
+                  {/* Manual Path Field for Advanced uses */}
+                  <div>
+                    <label className="text-xs font-semibold text-subtext block mb-1">Local watch path (glob)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. /uploads/data.csv"
+                      value={csvFilePath}
+                      onChange={e => setCsvFilePath(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
+                    />
+                  </div>
+
+                  {/* CSV Details Grid */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-subtext block mb-1">Delimiter</label>
+                      <select 
+                        className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none"
+                        value={delimiter}
+                        onChange={e => setDelimiter(e.target.value)}
+                      >
+                        <option value=",">, (comma)</option>
+                        <option value=";">; (semicolon)</option>
+                        <option value="\t">Tab (\t)</option>
+                        <option value="|">| (pipe)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-subtext block mb-1">Encoding</label>
+                      <select 
+                        className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none"
+                        value={encoding}
+                        onChange={e => setEncoding(e.target.value)}
+                      >
+                        {["UTF-8","ISO-8859-1","Windows-1252"].map(e=><option key={e}>{e}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-subtext block mb-1">Plant Column</label>
+                      <input
+                        type="text"
+                        value={plantCol}
+                        onChange={e => setPlantCol(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-subtext block mb-1">Machine Column</label>
+                      <input
+                        type="text"
+                        value={machineCol}
+                        onChange={e => setMachineCol(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="w-24">
+                    <label className="text-xs font-semibold text-subtext block mb-1">Skip Rows</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={10}
+                      value={skipRows}
+                      onChange={e => setSkipRows(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none"
+                    />
                   </div>
                 </div>
               ) : (
