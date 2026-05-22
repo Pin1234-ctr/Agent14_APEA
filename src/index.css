@@ -1,0 +1,55 @@
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg:        #f8f9fa;
+    --color-surface:   #ffffff;
+    --color-muted:     #f1f3f5;
+    --color-border:    #e5e7eb;
+    --color-text:      #111827;
+    --color-subtext:   #6b7280;
+    --color-primary:   #2563eb;
+    --color-primary-fg:#ffffff;
+    --color-success:   #16a34a;
+    --color-danger:    #dc2626;
+  }
+  .dark {
+    --color-bg:        #0f1117;
+    --color-surface:   #1a1d27;
+    --color-muted:     #232634;
+    --color-border:    #2d3148;
+    --color-text:      #f1f5f9;
+    --color-subtext:   #94a3b8;
+    --color-primary:   #3b82f6;
+    --color-primary-fg:#ffffff;
+    --color-success:   #22c55e;
+    --color-danger:    #ef4444;
+  }
+  html { font-family: system-ui, -apple-system, sans-serif; }
+  body { background-color: var(--color-bg); color: var(--color-text); }
+}
+
+@layer utilities {
+  .bg-bg       { background-color: var(--color-bg); }
+  .bg-surface  { background-color: var(--color-surface); }
+  .bg-muted    { background-color: var(--color-muted); }
+  .border-border { border-color: var(--color-border); }
+  .text-text   { color: var(--color-text); }
+  .text-subtext { color: var(--color-subtext); }
+  .text-primary { color: var(--color-primary); }
+  .text-success { color: var(--color-success); }
+  .text-danger  { color: var(--color-danger); }
+  .bg-primary   { background-color: var(--color-primary); }
+  .text-primary-fg { color: var(--color-primary-fg); }
+  .bg-success   { background-color: var(--color-success); }
+  .bg-danger    { background-color: var(--color-danger); }
+  .bg-primary\/12 { background-color: color-mix(in srgb, var(--color-primary) 12%, transparent); }
+  .bg-primary\/15 { background-color: color-mix(in srgb, var(--color-primary) 15%, transparent); }
+  .bg-danger\/10  { background-color: color-mix(in srgb, var(--color-danger)  10%, transparent); }
+  .bg-success\/10 { background-color: color-mix(in srgb, var(--color-success) 10%, transparent); }
+  .bg-success\/15 { background-color: color-mix(in srgb, var(--color-success) 15%, transparent); }
+  .ring-primary\/30 { --tw-ring-color: color-mix(in srgb, var(--color-primary) 30%, transparent); }
+}
