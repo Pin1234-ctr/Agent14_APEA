@@ -18,6 +18,20 @@ const STA_CLASSES: Record<string, string> = {
   suppressed:   "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
 };
 
+function formatGMT(dateStr: string | null | undefined) {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "—";
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const year = String(d.getUTCFullYear()).slice(-2);
+  const rawHours = d.getUTCHours();
+  const hour = rawHours % 12 || 12;
+  const minute = String(d.getUTCMinutes()).padStart(2, '0');
+  const ampm = rawHours >= 12 ? "PM" : "AM";
+  return `${day}/${month}/${year}, ${hour}:${minute} ${ampm}`;
+}
+
 export function ExceptionsPage() {
   const qc = useQueryClient();
   const [severity, setSeverity] = useState(""); const [status, setStatus] = useState("");
@@ -123,7 +137,7 @@ export function ExceptionsPage() {
                   <td className="px-4 py-3"><span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", SEV_CLASSES[r.severity]||"")}>{r.severity}</span></td>
                   <td className="px-4 py-3"><span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", STA_CLASSES[r.status]||"")}>{r.status}</span></td>
                   <td className="px-4 py-3 text-subtext text-xs">{r.source}</td>
-                  <td className="px-4 py-3 text-subtext text-xs whitespace-nowrap">{r.created_at ? new Date(r.created_at).toLocaleString() : "—"}</td>
+                  <td className="px-4 py-3 text-subtext text-xs whitespace-nowrap">{formatGMT(r.created_at)}</td>
                 </tr>
               ))}
             </tbody>
@@ -141,7 +155,7 @@ export function ExceptionsPage() {
           <div className="bg-surface rounded-2xl border border-border w-full max-w-lg p-6 space-y-4" onClick={e=>e.stopPropagation()}>
             <h2 className="text-sm font-semibold text-text">Exception #{selected.id} — {selected.metric}</h2>
             <div className="grid grid-cols-2 gap-3 text-xs">
-              {[["Plant",selected.plant],["Department",selected.department||"—"],["Machine",selected.machine||"—"],["Severity",selected.severity],["Expected",selected.expected_value],["Actual",selected.actual_value],["Deviation",selected.deviation_pct!=null?`${selected.deviation_pct}%`:"—"],["Status",selected.status],["Detected",selected.created_at?new Date(selected.created_at).toLocaleString():"—"]].map(([k,v])=>(
+              {[["Plant",selected.plant],["Department",selected.department||"—"],["Machine",selected.machine||"—"],["Severity",selected.severity],["Expected",selected.expected_value],["Actual",selected.actual_value],["Deviation",selected.deviation_pct!=null?`${selected.deviation_pct}%`:"—"],["Status",selected.status],["Detected",formatGMT(selected.created_at)]].map(([k,v])=>(
                 <div key={k}><p className="text-subtext">{k}</p><p className="font-medium text-text">{v}</p></div>
               ))}
             </div>

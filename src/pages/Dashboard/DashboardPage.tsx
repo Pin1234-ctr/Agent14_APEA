@@ -10,6 +10,20 @@ const SEV_COLORS: Record<string, string> = {
   critical: "#ef4444", high: "#f97316", medium: "#eab308", low: "#22c55e",
 };
 
+function formatGMT(dateStr: string | null | undefined) {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "—";
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const year = String(d.getUTCFullYear()).slice(-2);
+  const rawHours = d.getUTCHours();
+  const hour = rawHours % 12 || 12;
+  const minute = String(d.getUTCMinutes()).padStart(2, '0');
+  const ampm = rawHours >= 12 ? "PM" : "AM";
+  return `${day}/${month}/${year}, ${hour}:${minute} ${ampm}`;
+}
+
 function StatCard({ label, value, icon: Icon, color }: any) {
   return (
     <div className="rounded-xl border border-border bg-surface p-5 flex items-center gap-4">
@@ -144,7 +158,7 @@ export function DashboardPage() {
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-subtext text-xs">{r.status}</td>
-                  <td className="px-4 py-2.5 text-subtext text-xs">{r.event_time ? new Date(r.event_time).toLocaleString() : "—"}</td>
+                  <td className="px-4 py-2.5 text-subtext text-xs">{formatGMT(r.created_at)}</td>
                 </tr>
               ))}
             </tbody>
