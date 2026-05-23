@@ -27,7 +27,6 @@ function StatCard({ label, value, icon: Icon, color }: any) {
 export function DashboardPage() {
   const stats    = useQuery({ queryKey: ["dashboard","stats"],    queryFn: dashboardApi.stats,    refetchInterval: 30_000 });
   const severity = useQuery({ queryKey: ["dashboard","severity"], queryFn: dashboardApi.severity, refetchInterval: 60_000 });
-  const ts       = useQuery({ queryKey: ["dashboard","ts"],       queryFn: () => dashboardApi.timeseries(24), refetchInterval: 60_000 });
   const recent   = useQuery({ queryKey: ["dashboard","recent"],   queryFn: () => dashboardApi.recent(25), refetchInterval: 30_000 });
   const sla      = useQuery({ queryKey: ["dashboard","sla"],      queryFn: dashboardApi.sla, refetchInterval: 60_000 });
 
@@ -36,7 +35,6 @@ export function DashboardPage() {
 
   const s = stats.data;
   const sevData = (severity.data || []).map((r: any) => ({ name: r.severity, value: r.count }));
-  const tsData  = (ts.data || []).map((r: any) => ({ time: r.bucket?.slice(11,16), events: r.events }));
 
   const recentRows = recent.data || [];
   const totalPages = Math.ceil(recentRows.length / pageSize);
@@ -49,51 +47,66 @@ export function DashboardPage() {
         <p className="text-sm text-subtext">Live production monitoring overview</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard label="Open Exceptions"  value={s?.deviations_open}  icon={AlertTriangle} color="bg-danger/10 text-danger" />
         <StatCard label="Critical"         value={s?.critical_open}    icon={TrendingUp}    color="bg-orange-500/10 text-orange-500" />
         <StatCard label="Open Tickets"     value={s?.tickets_open}     icon={Ticket}        color="bg-primary/10 text-primary" />
-        <StatCard label="Telemetry (24h)"  value={s?.telemetry_24h?.toLocaleString()} icon={Activity} color="bg-success/10 text-success" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 rounded-xl border border-border bg-surface p-5">
-          <h2 className="text-sm font-medium text-text mb-4">Telemetry Events (24h)</h2>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={tsData}>
-              <defs>
-                <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.25}/>
-                  <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="time" tick={{ fontSize: 11 }} stroke="var(--color-subtext)" />
-              <YAxis tick={{ fontSize: 11 }} stroke="var(--color-subtext)" />
-              <Tooltip contentStyle={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }} />
-              <Area type="monotone" dataKey="events" stroke="var(--color-primary)" fill="url(#grad)" strokeWidth={2} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+      <div className="rounded-xl border border-border bg-surface p-6">
+        <h2 className="text-sm font-semibold text-text mb-6">Severity Breakdown </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+          {/* Column 1: Pie Chart */}
+          <div className="flex justify-center items-center">
+            {sevData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={240}>
+                <PieChart>
+                  <Pie 
+                    data={sevData} 
+                    cx="50%" 
+                    cy="50%" 
+                    innerRadius={60} 
+                    outerRadius={90} 
+                    dataKey="value"
+                    paddingAngle={3}
+                  >
+                    {sevData.map((e: any) => <Cell key={e.name} fill={SEV_COLORS[e.name] || "#888"} />)}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      background: "var(--color-surface)", 
+                      border: "1px solid var(--color-border)", 
+                      borderRadius: 8, 
+                      fontSize: 12 
+                    }} 
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-xs text-subtext py-10">No severity data available</p>
+            )}
+          </div>
 
-        <div className="rounded-xl border border-border bg-surface p-5">
-          <h2 className="text-sm font-medium text-text mb-4">Severity Breakdown</h2>
-          {sevData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie data={sevData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" label={({name,value}) => `${name}: ${value}`} labelLine={false}>
-                  {sevData.map((e: any) => <Cell key={e.name} fill={SEV_COLORS[e.name] || "#888"} />)}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : <p className="text-xs text-subtext text-center py-10">No data</p>}
-          {sla.data && (
-            <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
-              <CheckCircle className="h-4 w-4 text-success" />
-              <span className="text-xs text-subtext">SLA: <strong className="text-text">{sla.data.sla_pct}%</strong> (target {sla.data.target_pct}%)</span>
+          {/* Column 2: Severity stats & SLA details */}
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-3">
+              {sevData.map((e: any) => {
+                const total = sevData.reduce((acc: number, curr: any) => acc + curr.value, 0);
+                const pct = total > 0 ? Math.round((e.value / total) * 100) : 0;
+                return (
+                  <div key={e.name} className="flex items-center gap-3 p-3 rounded-lg border border-border/60 bg-muted/20">
+                    <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: SEV_COLORS[e.name] }} />
+                    <div>
+                      <p className="text-xs font-medium text-text capitalize">{e.name}</p>
+                      <p className="text-sm font-semibold text-subtext">{e.value} <span className="text-[10px] text-subtext/70">({pct}%)</span></p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          )}
+
+
+          </div>
         </div>
       </div>
 
