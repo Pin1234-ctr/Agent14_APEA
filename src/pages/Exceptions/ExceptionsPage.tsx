@@ -75,7 +75,7 @@ export function ExceptionsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
-              <tr>{["Plant","Unit","Machine","Metric","Expected","Actual","Dev%","Severity","Status","Source","Detected"].map(h=>(
+              <tr>{["Plant","Unit","Machine","Metric","Expected","Actual","Deviation%","Severity","Status","Source","Detected"].map(h=>(
                 <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-subtext uppercase whitespace-nowrap">{h}</th>
               ))}</tr>
             </thead>
