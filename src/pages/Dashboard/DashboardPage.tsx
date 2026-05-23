@@ -129,7 +129,7 @@ export function DashboardPage() {
               ) : paginatedRecentRows.map((r: any) => (
                 <tr key={r.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-2.5 text-text">{r.plant}</td>
-                  <td className="px-4 py-2.5 text-subtext">{r.line || "—"}</td>
+                  <td className="px-4 py-2.5 text-subtext">{r.department || "—"}</td>
                   <td className="px-4 py-2.5 text-subtext">{r.machine || "—"}</td>
                   <td className="px-4 py-2.5 text-text font-medium">{r.metric}</td>
                   <td className="px-4 py-2.5 text-text">{r.actual_value ?? "—"}</td>
