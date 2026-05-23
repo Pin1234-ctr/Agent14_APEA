@@ -71,7 +71,7 @@ export function TicketsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-lg font-semibold text-text flex items-center gap-2"><Ticket className="w-5 h-5" /> Tickets</h1>
-          <p className="text-sm text-subtext">Auto-raised from exception detection & trend alerts</p>
+          <p className="text-sm text-subtext">Auto-raised from exception detection </p>
         </div>
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-subtext" />
@@ -105,7 +105,7 @@ export function TicketsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
-              <tr>{["Ref","Plant","Dept","Machine","Issue","Assigned To","Priority","Status","Trend","Raised"].map(h=>(
+              <tr>{["Ref","Plant","Dept","Machine","Issue","Assigned To","Priority","Status","Raised"].map(h=>(
                 <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-subtext uppercase whitespace-nowrap">{h}</th>
               ))}</tr>
             </thead>
@@ -124,7 +124,7 @@ export function TicketsPage() {
                   <td className="px-4 py-3 text-subtext">{r.assigned_to||"—"}</td>
                   <td className="px-4 py-3"><span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", PRI[r.priority]||"")}>{r.priority}</span></td>
                   <td className="px-4 py-3"><span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", STA[r.status]||"")}>{r.status}</span></td>
-                  <td className="px-4 py-3">{r.is_trend ? <span className="flex items-center gap-1 text-orange-600 text-xs"><TrendingUp className="w-3 h-3"/>Trend</span> : <span className="text-subtext text-xs">—</span>}</td>
+                  {/* <td className="px-4 py-3">{r.is_trend ? <span className="flex items-center gap-1 text-orange-600 text-xs"><TrendingUp className="w-3 h-3"/>Trend</span> : <span className="text-subtext text-xs">—</span>}</td> */}
                   <td className="px-4 py-3 text-subtext text-xs whitespace-nowrap">{r.raising_time ? new Date(r.raising_time).toLocaleString() : "—"}</td>
                 </tr>
               ))}
