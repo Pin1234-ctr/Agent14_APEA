@@ -1,8 +1,7 @@
-// src/pages/Exceptions/ExceptionsPage.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { exceptionApi } from "@/services/api/endpoints";
-import { AlertTriangle, Filter } from "lucide-react";
+import { AlertTriangle, Filter, RefreshCw } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { Pagination } from "@/components/shared/Pagination";
 
@@ -25,12 +24,21 @@ export function ExceptionsPage() {
   const [selected, setSelected] = useState<any | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
+  const [countdown, setCountdown] = useState(30);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ["exceptions", severity, status],
     queryFn:  () => exceptionApi.list({ severity: severity||undefined, status: status||undefined, limit: 100 }),
     refetchInterval: 30_000,
   });
+
+  useEffect(() => {
+    setCountdown(30);
+    const timer = setInterval(() => {
+      setCountdown(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [dataUpdatedAt]);
 
   const updateMut = useMutation({
     mutationFn: ({ id, st }: any) => exceptionApi.updateStatus(id, st),
@@ -68,6 +76,21 @@ export function ExceptionsPage() {
             <option value="">All statuses</option>
             {["open","acknowledged","resolved","suppressed"].map(s=><option key={s}>{s}</option>)}
           </select>
+          
+          <div className="h-4 w-px bg-border mx-1" />
+          
+          <span className="text-xs text-subtext font-mono whitespace-nowrap bg-muted px-2.5 py-1.5 rounded-lg border border-border">
+            Refresh in {countdown}s
+          </span>
+          
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="flex items-center justify-center rounded-lg border border-border bg-surface p-1.5 text-xs text-text hover:bg-muted transition-colors disabled:opacity-50"
+            title="Refresh Now"
+          >
+            <RefreshCw className={cn("w-3.5 h-3.5 text-subtext", isFetching && "animate-spin text-primary")} />
+          </button>
         </div>
       </div>
 

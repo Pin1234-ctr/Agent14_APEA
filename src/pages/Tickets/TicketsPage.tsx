@@ -1,8 +1,7 @@
-// src/pages/Tickets/TicketsPage.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ticketApi } from "@/services/api/endpoints";
-import { Ticket, TrendingUp, Filter, Plus } from "lucide-react";
+import { Ticket, TrendingUp, Filter, Plus, RefreshCw } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { Pagination } from "@/components/shared/Pagination";
 
@@ -27,12 +26,21 @@ export function TicketsPage() {
   const [form, setForm] = useState({ plant:"", department:"", machine:"", issue:"", assigned_to:"", severity:"medium" });
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
+  const [countdown, setCountdown] = useState(30);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ["tickets", status, priority],
     queryFn:  () => ticketApi.list({ status:status||undefined, priority:priority||undefined, limit:100 }),
     refetchInterval: 30_000,
   });
+
+  useEffect(() => {
+    setCountdown(30);
+    const timer = setInterval(() => {
+      setCountdown(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [dataUpdatedAt]);
 
   const updateMut = useMutation({
     mutationFn: ({ id, s }: any) => ticketApi.updateStatus(id, s),
@@ -67,15 +75,29 @@ export function TicketsPage() {
         </div>
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-subtext" />
-          <select className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs text-text" value={status} onChange={e=>handleStatusChange(e.target.value)}>
+          <select className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs text-text focus:outline-none" value={status} onChange={e=>handleStatusChange(e.target.value)}>
             <option value="">All statuses</option>
             {["open","in_progress","resolved","closed"].map(s=><option key={s}>{s}</option>)}
           </select>
-          <select className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs text-text" value={priority} onChange={e=>handlePriorityChange(e.target.value)}>
+          <select className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs text-text focus:outline-none" value={priority} onChange={e=>handlePriorityChange(e.target.value)}>
             <option value="">All priorities</option>
             {["P1","P2","P3","P4"].map(p=><option key={p}>{p}</option>)}
           </select>
-         
+          
+          <div className="h-4 w-px bg-border mx-1" />
+          
+          <span className="text-xs text-subtext font-mono whitespace-nowrap bg-muted px-2.5 py-1.5 rounded-lg border border-border">
+            Refresh in {countdown}s
+          </span>
+          
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="flex items-center justify-center rounded-lg border border-border bg-surface p-1.5 text-xs text-text hover:bg-muted transition-colors disabled:opacity-50"
+            title="Refresh Now"
+          >
+            <RefreshCw className={cn("w-3.5 h-3.5 text-subtext", isFetching && "animate-spin text-primary")} />
+          </button>
         </div>
       </div>
 
