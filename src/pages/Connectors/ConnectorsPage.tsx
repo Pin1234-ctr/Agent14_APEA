@@ -86,7 +86,7 @@ function Badge({ status }: { status: "connected"|"disconnected"|"syncing" }) {
     syncing: "bg-primary/15 text-primary border-primary/30" 
   };
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-all", cls[status])}>
+    <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-all whitespace-nowrap flex-nowrap", cls[status])}>
       <span className={cn("h-1.5 w-1.5 rounded-full", { 
         "bg-success": status === "connected",
         "bg-subtext": status === "disconnected",
@@ -498,7 +498,7 @@ export function ConnectorsPage() {
                         </td>
 
                         {/* Status */}
-                        <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
+                        <td className="px-6 py-4 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                           <Badge status={row.enabled ? "connected" : "disconnected"} />
                         </td>
 
