@@ -141,15 +141,9 @@ export function ConnectorsPage() {
   const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
 
   // CSV form inputs
-  const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvFileName, setCsvFileName] = useState("");
-  const [csvFileSize, setCsvFileSize] = useState<number | null>(null);
-  const [csvFilePath, setCsvFilePath] = useState("");
-  const [delimiter, setDelimiter] = useState(",");
-  const [encoding, setEncoding] = useState("UTF-8");
-  const [plantCol, setPlantCol] = useState("plant");
-  const [machineCol, setMachineCol] = useState("machine");
-  const [skipRows, setSkipRows] = useState("0");
+  const [csvFiles, setCsvFiles] = useState<File[]>([]);
+  const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "analyzing" | "success" | "error">("idle");
+  const [errorMessage, setErrorMessage] = useState("");
   const [isDragging, setIsDragging] = useState(false);
 
   // FTP form inputs
@@ -168,24 +162,9 @@ export function ConnectorsPage() {
     setConnectorName(type === "csv" ? "CSV Connector" : "FTP Connector");
     
     if (type === "csv") {
-      if (csvCfg?.file_path) {
-        setCsvFileName(csvCfg.file_path.split("/").pop() || "data.csv");
-        setCsvFilePath(csvCfg.file_path);
-        setDelimiter(csvCfg.delimiter || ",");
-        setEncoding(csvCfg.encoding || "UTF-8");
-        setPlantCol(csvCfg.plant_col || "plant");
-        setMachineCol(csvCfg.machine_col || "machine");
-        setSkipRows(String(csvCfg.skip_rows || 0));
-      } else {
-        // Reset defaults
-        setCsvFileName("");
-        setCsvFilePath("");
-        setDelimiter(",");
-        setEncoding("UTF-8");
-        setPlantCol("plant");
-        setMachineCol("machine");
-        setSkipRows("0");
-      }
+      setCsvFiles([]);
+      setUploadStatus("idle");
+      setErrorMessage("");
     } else {
       if (ftpCfg?.host) {
         setHost(ftpCfg.host);
@@ -215,15 +194,9 @@ export function ConnectorsPage() {
     setActiveType("csv"); // default
     
     // Reset inputs
-    setCsvFile(null);
-    setCsvFileName("");
-    setCsvFileSize(null);
-    setCsvFilePath("");
-    setDelimiter(",");
-    setEncoding("UTF-8");
-    setPlantCol("plant");
-    setMachineCol("machine");
-    setSkipRows("0");
+    setCsvFiles([]);
+    setUploadStatus("idle");
+    setErrorMessage("");
 
     setHost("");
     setPort("21");
@@ -237,12 +210,14 @@ export function ConnectorsPage() {
   };
 
   // Drag & drop file select handlers
-  const handleFileSelect = (file?: File) => {
-    if (!file) return;
-    setCsvFile(file);
-    setCsvFileName(file.name);
-    setCsvFileSize(file.size);
-    setCsvFilePath(`/uploads/${file.name}`);
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    const csvFiles = files.filter(f => f.name.toLowerCase().endsWith(".csv"));
+    if (csvFiles.length > 0) {
+      handleAutoProcess(csvFiles);
+    } else if (files.length > 0) {
+      notify("⚠ Only CSV files are supported");
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -257,11 +232,56 @@ export function ConnectorsPage() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.name.endsWith(".csv")) {
-      handleFileSelect(file);
+    const files = Array.from(e.dataTransfer.files);
+    const csvFiles = files.filter(f => f.name.toLowerCase().endsWith(".csv"));
+    if (csvFiles.length > 0) {
+      handleAutoProcess(csvFiles);
     } else {
       notify("⚠ Only CSV files are supported");
+    }
+  };
+
+  // Auto processing handler for CSV upload + analysis
+  const handleAutoProcess = async (files: File[]) => {
+    if (files.length === 0) return;
+    
+    const name = connectorName || "CSV Connector";
+    if (!connectorName) {
+      setConnectorName("CSV Connector");
+    }
+
+    setUploadStatus("uploading");
+    setCsvFiles(files);
+    setErrorMessage("");
+
+    try {
+      // Build FormData payload
+      const formData = new FormData();
+      files.forEach((file) => {
+       formData.append("files", file);
+      });
+
+      // Save/Upload CSV via FormData payload
+     await connectorApi.uploadCsv(formData);
+
+      // Trigger automatic analysis/sync
+      setUploadStatus("analyzing");
+      const r = await syncCsvMut.mutateAsync();
+      setCsvRows(x => x + (r?.upserted || 0));
+
+      setUploadStatus("success");
+      notify(`✓ Uploaded and analyzed ${files.length} file(s) successfully!`);
+
+      // Close modal after short visual feedback
+      setTimeout(() => {
+        setIsOpen(false);
+        setUploadStatus("idle");
+        setCsvFiles([]);
+      }, 1500);
+    } catch (err: any) {
+      setUploadStatus("error");
+      setErrorMessage(err.message || "Failed to process CSV files");
+      notify(`✗ Processing failed: ${err.message || err}`);
     }
   };
 
@@ -273,73 +293,46 @@ export function ConnectorsPage() {
     }
 
     if (activeType === "csv") {
-      if (!csvFilePath) {
-        notify("⚠ CSV file upload or file path is required");
-        return;
-      }
-      try {
-        await saveCsvMut.mutateAsync({
-          file_path: csvFilePath,
-          delimiter,
-          encoding,
-          plant_col: plantCol,
-          machine_col: machineCol,
-          skip_rows: parseInt(skipRows) || 0,
-          sync_interval: 60
-        });
-        notify("✓ CSV Connector saved successfully");
-        setIsOpen(false);
-      } catch (err: any) {
-        notify(`✗ Save failed: ${err.message || err}`);
-      }
-    } else {
-      if (!host || !username) {
-        notify("⚠ Host and username are required");
-        return;
-      }
-      try {
-        await saveFtpMut.mutateAsync({
-          host,
-          port: parseInt(port) || 21,
-          username,
-          password: password || undefined,
-          remote_dir: remoteDir,
-          file_pattern: filePattern,
-          protocol: protocol.toLowerCase(),
-          sync_interval: 60
-        });
-        notify("✓ FTP Connector saved successfully");
-        setIsOpen(false);
-      } catch (err: any) {
-        notify(`✗ Save failed: ${err.message || err}`);
-      }
+      return; // Handled automatically by handleAutoProcess
+    }
+
+    if (!host || !username) {
+      notify("⚠ Host and username are required");
+      return;
+    }
+    try {
+      await saveFtpMut.mutateAsync({
+        host,
+        port: parseInt(port) || 21,
+        username,
+        password: password || undefined,
+        remote_dir: remoteDir,
+        file_pattern: filePattern,
+        protocol: protocol.toLowerCase(),
+        sync_interval: 60
+      });
+      notify("✓ FTP Connector saved successfully");
+      setIsOpen(false);
+    } catch (err: any) {
+      notify(`✗ Save failed: ${err.message || err}`);
     }
   };
 
   // Test handling
   const handleTest = async () => {
     if (activeType === "csv") {
-      if (!csvFilePath) {
-        notify("⚠ CSV file path required to test");
-        return;
-      }
-      try {
-        const r = await testCsvMut.mutateAsync();
-        notify(r.ok ? `✓ ${r.message}` : `✗ ${r.message}`);
-      } catch (e) {
-        notify("✗ Connection test failed");
-      }
-    } else {
-      if (!host || !username) {
-        notify("⚠ Host and username required to test");
-        return;
-      }
-      try {
-        const r = await testFtpMut.mutateAsync();
-        notify(r.ok ? `✓ ${r.message}` : `✗ ${r.message}`);
-      } catch (e) {
-        notify("✗ Connection test failed");
-      }
+      return; // CSV is handled by upload
+    }
+
+    if (!host || !username) {
+      notify("⚠ Host and username required to test");
+      return;
+    }
+    try {
+      const r = await testFtpMut.mutateAsync();
+      notify(r.ok ? `✓ ${r.message}` : `✗ ${r.message}`);
+    } catch (e) {
+      notify("✗ Connection test failed");
     }
   };
 
@@ -567,12 +560,12 @@ export function ConnectorsPage() {
                                 
                                 {row.id === "csv" ? (
                                   <div className="bg-surface border border-border rounded-xl p-4 text-xs space-y-2.5 shadow-sm">
-                                    <div className="flex justify-between items-center"><span className="text-subtext">Local Watch File:</span> <span className="font-mono text-text bg-muted px-2 py-0.5 rounded">{csvCfg?.file_path || "Not configured"}</span></div>
-                                    <div className="flex justify-between items-center"><span className="text-subtext">Delimiter:</span> <span className="font-medium text-text">"{csvCfg?.delimiter || ","}"</span></div>
-                                    <div className="flex justify-between items-center"><span className="text-subtext">Encoding:</span> <span className="font-medium text-text">{csvCfg?.encoding || "UTF-8"}</span></div>
-                                    <div className="flex justify-between items-center"><span className="text-subtext">Plant Column:</span> <span className="font-medium text-text">{csvCfg?.plant_col || "plant"}</span></div>
-                                    <div className="flex justify-between items-center"><span className="text-subtext">Machine Column:</span> <span className="font-medium text-text">{csvCfg?.machine_col || "machine"}</span></div>
-                                    <div className="flex justify-between items-center"><span className="text-subtext">Skip Rows:</span> <span className="font-medium text-text">{csvCfg?.skip_rows || 0}</span></div>
+                                    <div className="flex justify-between items-center"><span className="text-subtext">Connector Type:</span> <span className="font-medium text-text">CSV Multi-File Upload</span></div>
+                                    <div className="flex justify-between items-center"><span className="text-subtext">Auto-Sync / Analysis:</span> <span className="font-semibold text-success flex items-center gap-1">Enabled <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" /></span></div>
+                                    <div className="flex justify-between items-center"><span className="text-subtext">Last Uploaded File:</span> <span className="font-mono text-text bg-muted px-2 py-0.5 rounded truncate max-w-[220px]">{csvCfg?.file_path || "No uploads yet"}</span></div>
+                                    {csvCfg?.last_sync_at && (
+                                      <div className="flex justify-between items-center"><span className="text-subtext">Last Sync Processed:</span> <span className="font-medium text-text">{new Date(csvCfg.last_sync_at).toLocaleString()}</span></div>
+                                    )}
                                   </div>
                                 ) : (
                                   <div className="bg-surface border border-border rounded-xl p-4 text-xs space-y-2.5 shadow-sm">
@@ -628,12 +621,14 @@ export function ConnectorsPage() {
               <h2 className="text-base font-bold text-text flex items-center gap-2">
                 <Plus className="w-5 h-5 text-primary" /> {modalMode === "add" ? "Add Connector" : "Edit Connector"}
               </h2>
-              <button 
-                onClick={() => setIsOpen(false)}
-                className="p-1 rounded-full text-subtext hover:text-text hover:bg-muted transition-all"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              {(activeType !== "csv" || (uploadStatus === "idle" || uploadStatus === "error")) && (
+                <button 
+                  onClick={() => setIsOpen(false)}
+                  className="p-1 rounded-full text-subtext hover:text-text hover:bg-muted transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
             </div>
 
             {/* Modal Body */}
@@ -704,22 +699,21 @@ export function ConnectorsPage() {
 
               {/* Conditional Rendering based on selected dropdown */}
               {activeType === "csv" ? (
-                /* CSV INTERACTIVE INTERFACE */
+                /* CSV DYNAMIC AUTO-PROCESSOR INTERFACE */
                 <div className="space-y-4 pt-1 animate-fadeIn">
-                  {/* Drag & Drop File Zone */}
-                  <div>
-                    <label className="text-xs font-semibold text-subtext block mb-1">CSV Source File *</label>
-                    {!csvFileName ? (
+                  {uploadStatus === "idle" && (
+                    <div className="space-y-3">
+                      <label className="text-xs font-semibold text-subtext block">CSV Source Files *</label>
                       <div
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
                         onClick={() => fileInputRef.current?.click()}
                         className={cn(
-                          "border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all duration-200",
+                          "border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all duration-200",
                           isDragging 
                             ? "border-primary bg-primary/5 scale-[1.01]" 
-                            : "border-border bg-bg/40 hover:bg-bg hover:border-border-hover"
+                            : "border-border bg-bg/40 hover:bg-bg hover:border-border/60"
                         )}
                       >
                         <input
@@ -727,114 +721,89 @@ export function ConnectorsPage() {
                           ref={fileInputRef}
                           className="hidden"
                           accept=".csv"
-                          onChange={(e) => handleFileSelect(e.target.files?.[0])}
+                          multiple
+                          onChange={handleFileSelect}
                         />
-                        <UploadCloud className="w-9 h-9 text-subtext mb-2" />
-                        <p className="text-xs font-semibold text-text text-center">
+                        <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-3">
+                          <UploadCloud className="w-6 h-6 animate-pulse" />
+                        </div>
+                        <p className="text-sm font-semibold text-text text-center">
                           Drag and drop or browse files
                         </p>
-                        <p className="text-[10px] text-subtext mt-1 text-center">Supports standard comma-separated .csv files</p>
+                        <p className="text-xs text-subtext mt-1.5 text-center">
+                          Supports multiple .csv files
+                        </p>
+                        <p className="text-[10px] text-subtext mt-1 text-center font-mono">
+                          Automatic anomaly analysis starts instantly upon drop
+                        </p>
                       </div>
-                    ) : (
-                      <div className="rounded-xl border border-success/30 bg-success/5 px-4 py-3 flex items-center justify-between animate-fadeIn">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-success/15 text-success flex items-center justify-center">
-                            <FileText className="w-4.5 h-4.5" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold text-text truncate max-w-[200px]">{csvFileName}</p>
-                            <p className="text-[10px] text-subtext">
-                              {csvFileSize ? `${(csvFileSize / 1024).toFixed(1)} KB` : "Attached file"} · Ready to save
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCsvFile(null);
-                            setCsvFileName("");
-                            setCsvFileSize(null);
-                            setCsvFilePath("");
-                          }}
-                          className="p-1 rounded-full hover:bg-muted text-subtext hover:text-text transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+                    </div>
+                  )}
+
+                  {uploadStatus === "uploading" && (
+                    <div className="flex flex-col items-center justify-center p-6 border border-border rounded-xl bg-muted/10 animate-pulse">
+                      <RefreshCw className="w-10 h-10 text-primary animate-spin mb-3" />
+                      <h3 className="text-sm font-bold text-text mb-1">Uploading Files...</h3>
+                      <p className="text-xs text-subtext text-center mb-4">Transferring your data securely to the processing pipeline.</p>
+                      <div className="w-full bg-border rounded-full h-1.5 overflow-hidden mb-3">
+                        <div className="bg-primary h-full animate-progress" />
                       </div>
-                    )}
-                  </div>
+                      <div className="w-full max-h-[120px] overflow-y-auto space-y-1.5 px-2">
+                        {csvFiles.map((file, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-xs text-subtext py-1.5 px-2.5 rounded-lg bg-surface border border-border">
+                            <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
+                            <span className="truncate max-w-[200px] font-mono text-text">{file.name}</span>
+                            <span className="ml-auto font-mono text-[10px]">{(file.size / 1024).toFixed(1)} KB</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-                  {/* Manual Path Field for Advanced uses */}
-                  <div>
-                    <label className="text-xs font-semibold text-subtext block mb-1">Local watch path (glob)</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. /uploads/data.csv"
-                      value={csvFilePath}
-                      onChange={e => setCsvFilePath(e.target.value)}
-                      className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
-                    />
-                  </div>
+                  {uploadStatus === "analyzing" && (
+                    <div className="flex flex-col items-center justify-center p-6 border border-border rounded-xl bg-muted/10">
+                      <div className="relative mb-3 flex items-center justify-center">
+                        <div className="absolute inset-0 bg-primary/20 rounded-full blur-md animate-ping" />
+                        <Brain className="w-10 h-10 text-primary relative animate-pulse" />
+                      </div>
+                      <h3 className="text-sm font-bold text-text mb-1">Analyzing Data & Running Sync</h3>
+                      <p className="text-xs text-subtext text-center">Parsing records, detecting machine anomalies, and running LLM checks...</p>
+                      <div className="flex items-center gap-1.5 mt-4 text-[10px] font-semibold text-primary uppercase tracking-wider animate-pulse">
+                        <RefreshCw className="w-3 h-3 animate-spin" /> Processing pipeline active
+                      </div>
+                    </div>
+                  )}
 
-                  {/* CSV Details Grid */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-semibold text-subtext block mb-1">Delimiter</label>
-                      <select 
-                        className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none"
-                        value={delimiter}
-                        onChange={e => setDelimiter(e.target.value)}
+                  {uploadStatus === "success" && (
+                    <div className="flex flex-col items-center justify-center p-6 border border-success/30 rounded-xl bg-success/5 text-center">
+                      <div className="w-12 h-12 rounded-full bg-success/20 text-success flex items-center justify-center mb-3 scale-110 transition-transform">
+                        <Check className="w-6 h-6 stroke-[3]" />
+                      </div>
+                      <h3 className="text-sm font-bold text-text mb-1">Upload & Sync Successful!</h3>
+                      <p className="text-xs text-success/80">Successfully processed and imported {csvFiles.length} file(s).</p>
+                      <p className="text-[10px] text-subtext mt-2 font-mono">Closing wizard...</p>
+                    </div>
+                  )}
+
+                  {uploadStatus === "error" && (
+                    <div className="flex flex-col items-center justify-center p-6 border border-danger/30 rounded-xl bg-danger/5 text-center">
+                      <div className="w-12 h-12 rounded-full bg-danger/20 text-danger flex items-center justify-center mb-3">
+                        <AlertTriangle className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-sm font-bold text-text mb-1">Processing Failed</h3>
+                      <p className="text-xs text-danger/80 max-w-xs">{errorMessage || "An unexpected error occurred during processing."}</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUploadStatus("idle");
+                          setCsvFiles([]);
+                        }}
+                        className="mt-4 px-4 py-1.5 text-xs font-semibold bg-bg hover:bg-muted text-text border border-border rounded-lg transition-all"
                       >
-                        <option value=",">, (comma)</option>
-                        <option value=";">; (semicolon)</option>
-                        <option value="\t">Tab (\t)</option>
-                        <option value="|">| (pipe)</option>
-                      </select>
+                        Try Again
+                      </button>
                     </div>
-                    <div>
-                      <label className="text-xs font-semibold text-subtext block mb-1">Encoding</label>
-                      <select 
-                        className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none"
-                        value={encoding}
-                        onChange={e => setEncoding(e.target.value)}
-                      >
-                        {["UTF-8","ISO-8859-1","Windows-1252"].map(e=><option key={e}>{e}</option>)}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-semibold text-subtext block mb-1">Plant Column</label>
-                      <input
-                        type="text"
-                        value={plantCol}
-                        onChange={e => setPlantCol(e.target.value)}
-                        className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-subtext block mb-1">Machine Column</label>
-                      <input
-                        type="text"
-                        value={machineCol}
-                        onChange={e => setMachineCol(e.target.value)}
-                        className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="w-24">
-                    <label className="text-xs font-semibold text-subtext block mb-1">Skip Rows</label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={10}
-                      value={skipRows}
-                      onChange={e => setSkipRows(e.target.value)}
-                      className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none"
-                    />
-                  </div>
+                  )}
                 </div>
               ) : (
                 /* FTP INTERACTIVE INTERFACE */
@@ -921,35 +890,37 @@ export function ConnectorsPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-muted/10">
-              <button 
-                type="button"
-                onClick={handleTest}
-                disabled={activeType === "csv" ? testCsvMut.isPending : testFtpMut.isPending}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-border bg-surface hover:bg-muted text-text rounded-lg transition-colors disabled:opacity-50"
-              >
-                <Wifi className="w-3.5 h-3.5 text-primary" /> 
-                {(activeType === "csv" ? testCsvMut.isPending : testFtpMut.isPending) ? "Testing…" : "Test Connection"}
-              </button>
+            {activeType !== "csv" && (
+              <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-muted/10">
+                <button 
+                  type="button"
+                  onClick={handleTest}
+                  disabled={testFtpMut.isPending}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-border bg-surface hover:bg-muted text-text rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <Wifi className="w-3.5 h-3.5 text-primary" /> 
+                  {testFtpMut.isPending ? "Testing…" : "Test Connection"}
+                </button>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="px-4 py-1.5 text-xs font-semibold hover:bg-muted text-subtext hover:text-text rounded-lg transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={activeType === "csv" ? saveCsvMut.isPending : saveFtpMut.isPending}
-                  className="px-4 py-1.5 text-xs font-bold bg-primary hover:bg-primary/95 text-white rounded-lg transition-all shadow-sm disabled:opacity-50"
-                >
-                  {(activeType === "csv" ? saveCsvMut.isPending : saveFtpMut.isPending) ? "Saving…" : "Save"}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsOpen(false)}
+                    className="px-4 py-1.5 text-xs font-semibold hover:bg-muted text-subtext hover:text-text rounded-lg transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={saveFtpMut.isPending}
+                    className="px-4 py-1.5 text-xs font-bold bg-primary hover:bg-primary/95 text-white rounded-lg transition-all shadow-sm disabled:opacity-50"
+                  >
+                    {saveFtpMut.isPending ? "Saving…" : "Save"}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}

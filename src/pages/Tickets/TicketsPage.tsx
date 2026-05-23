@@ -75,9 +75,7 @@ export function TicketsPage() {
             <option value="">All priorities</option>
             {["P1","P2","P3","P4"].map(p=><option key={p}>{p}</option>)}
           </select>
-          <button onClick={()=>setShowCreate(true)} className="flex items-center gap-1.5 rounded-lg bg-text text-bg px-3 py-1.5 text-xs font-medium hover:opacity-90 transition-opacity">
-            <Plus className="w-3.5 h-3.5" /> New ticket
-          </button>
+         
         </div>
       </div>
 

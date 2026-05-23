@@ -50,6 +50,12 @@ export const rcaApi = {
 export const connectorApi = {
   get:    (name: string)          => API.get(`/connectors/${name}`).then(unwrap),
   save:   (name: string, p: any)  => API.put(`/connectors/${name}`, p).then(unwrap),
+    uploadCsv: (formData: FormData) =>
+    API.post("csv/deviation/analyze", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }).then(unwrap),
   test:   (name: string)          => API.post(`/connectors/${name}/test`).then(unwrap),
   sync:   (name: string)          => API.post(`/connectors/${name}/sync`).then(unwrap),
   logs:   (name: string, limit = 20) =>
