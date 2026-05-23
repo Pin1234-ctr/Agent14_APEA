@@ -20,11 +20,7 @@ export function RCAPage() {
     onSuccess:  () => { qc.invalidateQueries({ queryKey: ["rca"] }); setDevId(""); },
   });
 
-  const rows: any[] = [...(rcas || [])].sort((a: any, b: any) => {
-    const rcA = (a.root_cause || "").trim().toLowerCase();
-    const rcB = (b.root_cause || "").trim().toLowerCase();
-    return rcA.localeCompare(rcB);
-  });
+  const rows: any[] = [...(rcas || [])].sort((a: any, b: any) => a.id - b.id);
 
   return (
     <div className="p-6 space-y-4">
