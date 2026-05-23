@@ -20,7 +20,11 @@ export function RCAPage() {
     onSuccess:  () => { qc.invalidateQueries({ queryKey: ["rca"] }); setDevId(""); },
   });
 
-  const rows: any[] = rcas || [];
+  const rows: any[] = [...(rcas || [])].sort((a: any, b: any) => {
+    const rcA = (a.root_cause || "").trim().toLowerCase();
+    const rcB = (b.root_cause || "").trim().toLowerCase();
+    return rcA.localeCompare(rcB);
+  });
 
   return (
     <div className="p-6 space-y-4">
@@ -29,13 +33,13 @@ export function RCAPage() {
           <h1 className="text-lg font-semibold text-text flex items-center gap-2"><Brain className="w-5 h-5 text-amber-500" /> Root Cause Analysis</h1>
           <p className="text-sm text-subtext">LLM-generated root cause and solution for each exception</p>
         </div>
-        <div className="flex items-center gap-2">
+        {/* <div className="flex items-center gap-2">
           <input value={devId} onChange={e=>setDevId(e.target.value)} placeholder="Exception ID" className="w-32 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs text-text focus:outline-none" />
           <button onClick={()=>genMut.mutate(parseInt(devId))} disabled={genMut.isPending || !devId}
             className="flex items-center gap-1.5 rounded-lg bg-text text-bg px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:opacity-50">
             <Zap className="w-3.5 h-3.5" /> {genMut.isPending ? "Generating…" : "Generate RCA"}
           </button>
-        </div>
+        </div> */}
       </div>
 
       <div className="grid gap-4">

@@ -45,7 +45,11 @@ export function ExceptionsPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["exceptions"] }); setSelected(null); },
   });
 
-  const rows: any[] = data || [];
+  const rows: any[] = [...(data || [])].sort((a: any, b: any) => {
+    const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return timeB - timeA;
+  });
   const totalPages = Math.ceil(rows.length / pageSize);
   const paginatedRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
@@ -119,7 +123,7 @@ export function ExceptionsPage() {
                   <td className="px-4 py-3"><span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", SEV_CLASSES[r.severity]||"")}>{r.severity}</span></td>
                   <td className="px-4 py-3"><span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", STA_CLASSES[r.status]||"")}>{r.status}</span></td>
                   <td className="px-4 py-3 text-subtext text-xs">{r.source}</td>
-                  <td className="px-4 py-3 text-subtext text-xs whitespace-nowrap">{r.event_time ? new Date(r.event_time).toLocaleString() : "—"}</td>
+                  <td className="px-4 py-3 text-subtext text-xs whitespace-nowrap">{r.created_at ? new Date(r.created_at).toLocaleString() : "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -137,7 +141,7 @@ export function ExceptionsPage() {
           <div className="bg-surface rounded-2xl border border-border w-full max-w-lg p-6 space-y-4" onClick={e=>e.stopPropagation()}>
             <h2 className="text-sm font-semibold text-text">Exception #{selected.id} — {selected.metric}</h2>
             <div className="grid grid-cols-2 gap-3 text-xs">
-              {[["Plant",selected.plant],["Department",selected.department||"—"],["Machine",selected.machine||"—"],["Severity",selected.severity],["Expected",selected.expected_value],["Actual",selected.actual_value],["Deviation",selected.deviation_pct!=null?`${selected.deviation_pct}%`:"—"],["Status",selected.status]].map(([k,v])=>(
+              {[["Plant",selected.plant],["Department",selected.department||"—"],["Machine",selected.machine||"—"],["Severity",selected.severity],["Expected",selected.expected_value],["Actual",selected.actual_value],["Deviation",selected.deviation_pct!=null?`${selected.deviation_pct}%`:"—"],["Status",selected.status],["Detected",selected.created_at?new Date(selected.created_at).toLocaleString():"—"]].map(([k,v])=>(
                 <div key={k}><p className="text-subtext">{k}</p><p className="font-medium text-text">{v}</p></div>
               ))}
             </div>
