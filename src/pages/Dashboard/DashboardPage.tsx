@@ -50,7 +50,11 @@ export function DashboardPage() {
   const s = stats.data;
   const sevData = (severity.data || []).map((r: any) => ({ name: r.severity, value: r.count }));
 
-  const recentRows = recent.data || [];
+  const recentRows = [...(recent.data || [])].sort((a: any, b: any) => {
+    const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return timeB - timeA;
+  });
   const totalPages = Math.ceil(recentRows.length / pageSize);
   const paginatedRecentRows = recentRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
