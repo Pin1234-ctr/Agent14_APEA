@@ -6,24 +6,62 @@ import { FileText, Download } from "lucide-react";
 import { Pagination } from "@/components/shared/Pagination";
 
 export function ReportsPage() {
-  const [days, setDays]     = useState("7");
+  const [days, setDays] = useState("7");
   const [format, setFormat] = useState("pdf");
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
   const { data: list } = useQuery({ queryKey: ["reports"], queryFn: reportApi.list, refetchInterval: 60_000 });
 
+  const showToast = (msg: string, type: "success" | "error" = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
   const handleGenerate = async () => {
     setLoading(true);
     try {
       const resp = await reportApi.generate(format, parseInt(days));
-      const url  = URL.createObjectURL(resp.data);
-      const a    = document.createElement("a");
-      a.href     = url;
-      a.download = `apea_report.${format}`;
+
+      // Basic check: if it's too small, it's probably an error masquerading as a blob
+      if (resp.data.size < 100) {
+        const text = await resp.data.text();
+        try {
+          const json = JSON.parse(text);
+          if (json.ok === false) {
+            showToast(json.message || "Failed to generate report", "error");
+            return;
+          }
+        } catch (e) {
+          // not json, continue to download or handle as error
+        }
+      }
+
+      const url = URL.createObjectURL(resp.data);
+      const a = document.createElement("a");
+      a.href = url;
+      const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+      a.download = `apea_report_${ts}.${format}`;
+      document.body.appendChild(a); // Required for some browsers
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      showToast("Report downloaded successfully!");
+    } catch (err: any) {
+      console.error("Report generation error:", err);
+      let msg = "Failed to generate report";
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const json = JSON.parse(text);
+          msg = json.message || msg;
+        } catch (e) { }
+      } else if (err.message) {
+        msg = err.message;
+      }
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
@@ -35,6 +73,14 @@ export function ReportsPage() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-[100] px-4 py-3 rounded-lg shadow-xl font-medium animate-in fade-in slide-in-from-bottom-4 duration-300 ${toast.type === "error" ? "bg-danger text-white" : "bg-text text-bg"
+          }`}>
+          {toast.msg}
+        </div>
+      )}
+
       <div>
         <h1 className="text-lg font-semibold text-text flex items-center gap-2"><FileText className="w-5 h-5" /> Reports</h1>
         <p className="text-sm text-subtext">Generate and download exception reports</p>
@@ -45,13 +91,13 @@ export function ReportsPage() {
         <div className="flex flex-wrap items-center gap-3">
           <div>
             <label className="text-xs text-subtext block mb-1">Period</label>
-            <select className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text" value={days} onChange={e=>setDays(e.target.value)}>
-              {[["7","Last 7 days"],["14","Last 14 days"],["30","Last 30 days"],["90","Last 90 days"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+            <select className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text" value={days} onChange={e => setDays(e.target.value)}>
+              {[["7", "Last 7 days"], ["14", "Last 14 days"], ["30", "Last 30 days"], ["90", "Last 90 days"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </div>
           <div>
             <label className="text-xs text-subtext block mb-1">Format</label>
-            <select className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text" value={format} onChange={e=>setFormat(e.target.value)}>
+            <select className="rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text" value={format} onChange={e => setFormat(e.target.value)}>
               <option value="pdf">PDF</option>
               <option value="docx">Word (.docx)</option>
             </select>
@@ -73,13 +119,13 @@ export function ReportsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50"><tr>
-                  {["Filename","Size","Modified"].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-subtext uppercase">{h}</th>)}
+                  {["Filename", "Size", "Modified"].map(h => <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-subtext uppercase">{h}</th>)}
                 </tr></thead>
                 <tbody className="divide-y divide-border">
                   {paginatedRows.map((r: any) => (
                     <tr key={r.filename} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3 text-text">{r.filename}</td>
-                      <td className="px-4 py-3 text-subtext">{(r.size/1024).toFixed(1)} KB</td>
+                      <td className="px-4 py-3 text-subtext">{(r.size / 1024).toFixed(1)} KB</td>
                       <td className="px-4 py-3 text-subtext">{new Date(r.modified * 1000).toLocaleString()}</td>
                     </tr>
                   ))}
