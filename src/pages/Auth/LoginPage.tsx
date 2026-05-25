@@ -133,14 +133,14 @@ export function LoginPage() {
                 Sign in
               </Button>
             </form>
-            <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-subtext text-left">
+            {/* <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-subtext text-left">
               <p className="font-medium text-text">Default credentials (dev)</p>
               <p className="mt-1">
                 <span className="font-mono">admin@apea.local</span> /{" "}
                 <span className="font-mono">Admin@123</span>
               </p>
               <p className="mt-1 text-[11px]">Change after first login. See README for details.</p>
-            </div>
+            </div> */}
           </div>
         </motion.div>
       </div>
