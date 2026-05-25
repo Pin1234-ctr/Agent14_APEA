@@ -2,23 +2,33 @@
 import { NavLink } from "react-router-dom";
 import { LayoutDashboard, AlertTriangle, Ticket, Brain, PlugZap, MessagesSquare, FileText, Settings } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { useAuth } from "@/context/AuthContext";
 
 const NAV = [
-  { to: "/dashboard",  label: "Dashboard",  icon: LayoutDashboard },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/connectors", label: "Connectors", icon: PlugZap },
   { to: "/exceptions", label: "Exceptions", icon: AlertTriangle },
-  { to: "/tickets",    label: "Tickets",    icon: Ticket },
-  { to: "/rca",        label: "Root Cause", icon: Brain },
-  { to: "/chatbot",    label: "Assistant",  icon: MessagesSquare },
-  { to: "/reports",    label: "Reports",    icon: FileText },
-  { to: "/settings",   label: "Settings",   icon: Settings },
+  { to: "/tickets", label: "Tickets", icon: Ticket },
+  { to: "/rca", label: "Root Cause", icon: Brain },
+  { to: "/chatbot", label: "Assistant", icon: MessagesSquare },
+  { to: "/reports", label: "Reports", icon: FileText },
+  // { to: "/settings",   label: "Settings",   icon: Settings },
 ];
 
 export function Sidebar() {
+  const { user } = useAuth();
+
+  const filteredNav = NAV.filter(item => {
+    if (user?.role === "engineer") {
+      if (item.to === "/connectors" || item.to === "/reports") return false;
+    }
+    return true;
+  });
+
   return (
     <aside className="hidden md:flex md:flex-col md:w-56 border-r border-border bg-surface shrink-0">
       <nav className="flex-1 space-y-0.5 px-2 py-4">
-        {NAV.map(({ to, label, icon: Icon }) => (
+        {filteredNav.map(({ to, label, icon: Icon }) => (
           <NavLink key={to} to={to}
             className={({ isActive }) => cn(
               "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
