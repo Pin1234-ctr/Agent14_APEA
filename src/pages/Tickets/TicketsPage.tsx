@@ -30,7 +30,7 @@ export function TicketsPage() {
 
   const { data, isLoading, refetch, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ["tickets", status, priority],
-    queryFn:  () => ticketApi.list({ status:status||undefined, priority:priority||undefined, limit:100 }),
+    queryFn:  () => ticketApi.list({ status:status||undefined, priority:priority||undefined }),
     refetchInterval: 30_000,
   });
 

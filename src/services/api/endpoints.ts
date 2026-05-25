@@ -17,7 +17,7 @@ export const dashboardApi = {
   stats:      () => API.get("/dashboard/stats").then(unwrap),
   severity:   () => API.get("/dashboard/severity").then(unwrap),
   timeseries: (hours = 24) => API.get("/dashboard/timeseries", { params: { hours } }).then(unwrap),
-  recent:     (limit = 10) => API.get("/dashboard/recent-deviations", { params: { limit } }).then(unwrap),
+  recent:     () => API.get("/dashboard/recent-deviations", { params: {  } }).then(unwrap),
   sla:        () => API.get("/dashboard/sla").then(unwrap),
 };
 
@@ -58,8 +58,8 @@ export const connectorApi = {
     }).then(unwrap),
   test:   (name: string)          => API.post(`/connectors/${name}/test`).then(unwrap),
   sync:   (name: string)          => API.post(`/connectors/${name}/sync`).then(unwrap),
-  logs:   (name: string, limit = 20) =>
-    API.get(`/connectors/${name}/logs`, { params: { limit } }).then(unwrap),
+  logs:   (name: string) =>
+    API.get(`/connectors/${name}/logs`, { params: { } }).then(unwrap),
   toggle: (name: string)          => API.post(`/connectors/${name}/toggle`).then(unwrap),
 };
 

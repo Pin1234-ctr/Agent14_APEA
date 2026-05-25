@@ -42,7 +42,7 @@ export function ExceptionsPage() {
 
   const { data, isLoading, refetch, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ["exceptions", severity, status],
-    queryFn:  () => exceptionApi.list({ severity: severity||undefined, status: status||undefined, limit: 100 }),
+    queryFn:  () => exceptionApi.list({ severity: severity||undefined, status: status||undefined }),
     refetchInterval: 30_000,
   });
 
