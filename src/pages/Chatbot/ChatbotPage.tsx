@@ -4,31 +4,56 @@ import { chatApi } from "@/services/api/endpoints";
 import { MessagesSquare, Send, Bot, User } from "lucide-react";
 import { cn } from "@/utils/cn";
 
-interface Msg { role: "user"|"assistant"; content: string; }
+interface Msg { role: "user" | "assistant"; content: string; }
 
 export function ChatbotPage() {
-  const [msgs, setMsgs]       = useState<Msg[]>([]);
-  const [input, setInput]     = useState("");
+  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [session]             = useState(() => Math.random().toString(36).slice(2));
-  const bottomRef             = useRef<HTMLDivElement>(null);
+  const [session] = useState(() => Math.random().toString(36).slice(2));
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:"smooth" }); }, [msgs]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
 
   const send = async () => {
     if (!input.trim() || loading) return;
     const text = input.trim();
     setInput("");
-    setMsgs(m => [...m, { role:"user", content:text }]);
+    setMsgs(m => [...m, { role: "user", content: text }]);
     setLoading(true);
     try {
       const r = await chatApi.send(text, session);
-      setMsgs(m => [...m, { role:"assistant", content:r.reply }]);
+      setMsgs(m => [...m, { role: "assistant", content: r.reply }]);
     } catch {
-      setMsgs(m => [...m, { role:"assistant", content:"Sorry, I encountered an error. Please try again." }]);
+      setMsgs(m => [...m, { role: "assistant", content: "Sorry, I encountered an error. Please try again." }]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatContent = (content: string) => {
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed && typeof parsed === "object") {
+        if (parsed.response) return parsed.response;
+        if (parsed.message) return parsed.message;
+
+        return Object.entries(parsed)
+          .filter(([key, value]) => !(key === "source" && value === "N/A"))
+          .map(([key, value]) => {
+            if (key === "error") return value;
+            const label = key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            let val = value;
+            if (val === null || val === undefined) val = "N/A";
+            if (Array.isArray(val)) val = val.join(', ');
+            return `${label}: ${val}`;
+          })
+          .join('\n');
+      }
+    } catch {
+      // return as is
+    }
+    return content;
   };
 
   return (
@@ -50,8 +75,8 @@ export function ChatbotPage() {
             <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs", m.role === "user" ? "bg-primary text-primary-fg" : "bg-muted text-subtext")}>
               {m.role === "user" ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
             </div>
-            <div className={cn("rounded-2xl px-4 py-2.5 text-sm", m.role === "user" ? "bg-primary text-primary-fg rounded-tr-sm" : "bg-surface border border-border text-text rounded-tl-sm")}>
-              <p className="whitespace-pre-wrap">{m.content}</p>
+            <div className={cn("rounded-2xl px-4 py-2.5 text-sm break-words", m.role === "user" ? "bg-primary text-primary-fg rounded-tr-sm" : "bg-surface border border-border text-text rounded-tl-sm")}>
+              <p className="whitespace-pre-wrap">{formatContent(m.content)}</p>
             </div>
           </div>
         ))}
@@ -59,7 +84,7 @@ export function ChatbotPage() {
           <div className="flex gap-3 max-w-3xl">
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-subtext"><Bot className="w-3.5 h-3.5" /></div>
             <div className="bg-surface border border-border rounded-2xl rounded-tl-sm px-4 py-2.5">
-              <span className="inline-flex gap-1">{[0,1,2].map(i=><span key={i} className="w-1.5 h-1.5 rounded-full bg-subtext animate-bounce" style={{animationDelay:`${i*0.15}s`}} />)}</span>
+              <span className="inline-flex gap-1">{[0, 1, 2].map(i => <span key={i} className="w-1.5 h-1.5 rounded-full bg-subtext animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}</span>
             </div>
           </div>
         )}
@@ -69,12 +94,12 @@ export function ChatbotPage() {
       <div className="px-6 py-4 border-t border-border">
         <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-2.5">
           <input
-            value={input} onChange={e=>setInput(e.target.value)}
-            onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&send()}
+            value={input} onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()}
             placeholder="Ask about exceptions, root causes, tickets…"
             className="flex-1 bg-transparent text-sm text-text placeholder:text-subtext focus:outline-none"
           />
-          <button onClick={send} disabled={!input.trim()||loading} className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-fg hover:opacity-90 disabled:opacity-50 transition-opacity">
+          <button onClick={send} disabled={!input.trim() || loading} className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-fg hover:opacity-90 disabled:opacity-50 transition-opacity">
             <Send className="w-3.5 h-3.5" />
           </button>
         </div>
