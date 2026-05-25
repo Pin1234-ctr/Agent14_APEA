@@ -7,7 +7,7 @@ import { ThemeToggle } from "@/components/shared/ThemeToggle";
 export function Header() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const handleLogout = async () => { await logout(); navigate("/login", { replace: true }); };
+  const handleLogout = async () => { await logout(); navigate("/", { replace: true }); };
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-border bg-surface/80 px-4 backdrop-blur">
